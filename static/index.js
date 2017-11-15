@@ -2,10 +2,8 @@ $.when($.ready).then(function () {
     $("#transmit").submit(function (transmitEvent) {
         transmitEvent.preventDefault();
 
-        var target = $(transmitEvent.target);
-
-        var message = target.find("[name=snippet]").val();
-        $.post("/transmit", target.serialize()).done(function () {
+        var message = $(transmitEvent.target).find("[name=snippet]").val();
+        $.post("/transmit", message, null, "text/plain").done(function () {
             console.log("Transmitted ", message);
         }).fail(function (jqXHR, textStatus, errorThrown) {
             console.group("Transmission failed:")

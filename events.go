@@ -24,11 +24,7 @@ func (h *eventsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		cn, ok := w.(http.CloseNotifier)
-		if !ok {
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
-		}
+		ctx := r.Context()
 
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
@@ -52,7 +48,7 @@ func (h *eventsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		for {
 			select {
-			case <-cn.CloseNotify():
+			case <-ctx.Done():
 				log.Println("Event stream closed from client")
 				return
 			case m, ok := <-messages:
