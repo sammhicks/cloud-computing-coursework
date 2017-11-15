@@ -23,8 +23,7 @@ func (h *transmitHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Println("Error creating storage client:", err)
 
-			status := http.StatusInternalServerError
-			http.Error(w, http.StatusText(status), status)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 
 			return
 		}
@@ -38,8 +37,7 @@ func (h *transmitHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if _, err := io.Copy(objWriter, r.Body); err != nil {
 			log.Println("Error streaming data:", err)
 
-			status := http.StatusInternalServerError
-			http.Error(w, http.StatusText(status), status)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 
 			return
 		}
@@ -47,16 +45,14 @@ func (h *transmitHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if err := objWriter.Close(); err != nil {
 			log.Println("Error closing writer:", err)
 
-			status := http.StatusInternalServerError
-			http.Error(w, http.StatusText(status), status)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 
 			return
 		}
 
 		fmt.Fprintln(w, "Successfuly transmitted snippet")
 	default:
-		status := http.StatusMethodNotAllowed
-		http.Error(w, http.StatusText(status), status)
+		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 	}
 }
 
