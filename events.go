@@ -3,7 +3,9 @@ package main
 import (
 	"bufio"
 	"context"
+	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"net/http"
@@ -40,7 +42,19 @@ func (h *eventsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		topic := client.TopicInProject("test", projectID)
 
-		sub, err := client.CreateSubscription(ctx, "test-sub", pubsub.SubscriptionConfig{Topic: topic})
+		subNameBytes := make([]byte, 16)
+
+		_, err = rand.Read(subNameBytes)
+
+		if err != nil {
+			log.Println("Failed to generate random data:", err)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
+
+		subName := fmt.Sprintf("sub-%s", hex.EncodeToString(subNameBytes))
+
+		sub, err := client.CreateSubscription(ctx, subName, pubsub.SubscriptionConfig{Topic: topic})
 
 		if err != nil {
 			log.Println("Failed to create subscriber:", err)
