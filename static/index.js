@@ -3,7 +3,7 @@ $.when($.ready).then(function () {
         transmitEvent.preventDefault();
 
         var message = $(transmitEvent.target).find("[name=snippet]").val();
-        $.post("/transmit", message, null, "text/plain").done(function () {
+        $.post("/transmit", message, null, "text").done(function () {
             console.log("Transmitted ", message);
         }).fail(function (jqXHR, textStatus, errorThrown) {
             console.group("Transmission failed:")
