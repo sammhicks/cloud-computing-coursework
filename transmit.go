@@ -5,7 +5,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"cloud.google.com/go/pubsub"
@@ -15,6 +14,8 @@ import (
 const transmitPath = "/transmit"
 
 type transmitHandler struct {
+	pubsubClient  *pubsub.Client
+	storageBucket *storage.BucketHandle
 }
 
 func (h *transmitHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -22,20 +23,33 @@ func (h *transmitHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "POST":
 		ctx := r.Context()
 
-		storageClient, err := storage.NewClient(ctx)
+		keys, err := GoogleKeys()
+
 		if err != nil {
-			log.Println("Error creating storage client:", err)
-
+			log.Println("Failed to fetch google public keys:", err)
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-
 			return
 		}
 
-		defer storageClient.Close()
+		userID, userEmail, err := VerifyToken(r.URL.Query().Get("token"), keys, "812818444262-dihtcq1cl07rrc4d3gs86obfs95dhe4i.apps.googleusercontent.com")
 
-		bkt := storageClient.Bucket("cloud-computing-coursework.appspot.com")
+		if err != nil {
+			log.Println("Auth Error:", err)
+			http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+			return
+		}
 
-		obj := bkt.Object(fmt.Sprintf("test/%d", time.Now().Unix()))
+		topicName := fmt.Sprint("notifications-", userID)
+
+		topic, err := h.pubsubClient.CreateTopic(ctx, topicName)
+
+		if err != nil {
+			topic = h.pubsubClient.Topic(topicName)
+		}
+
+		objectName := fmt.Sprintf("snippets/%x/%x", userID, time.Now().UnixNano())
+
+		obj := h.storageBucket.Object(objectName)
 
 		objWriter := obj.NewWriter(ctx)
 
@@ -51,28 +65,18 @@ func (h *transmitHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			log.Println("Error closing writer:", err)
 
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-
 			return
 		}
 
-		projectID, projectIDDeclared := os.LookupEnv("project")
+		if err := obj.ACL().Set(ctx, storage.ACLEntity(fmt.Sprint("user-", userEmail)), storage.RoleReader); err != nil {
 
-		if !projectIDDeclared {
-			log.Println("Project ID not declared")
+			log.Println("Error closing writer:", err)
+
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
 
-		pubsubClient, err := pubsub.NewClient(ctx, projectID)
-		if err != nil {
-			log.Println("Failed to create client:", err)
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
-		}
-
-		topic := pubsubClient.TopicInProject("test", projectID)
-
-		topic.Publish(ctx, &pubsub.Message{Data: []byte("new message")})
+		topic.Publish(ctx, &pubsub.Message{Data: []byte(objectName)})
 
 		fmt.Fprintln(w, "Successfuly transmitted snippet")
 	default:
@@ -81,4 +85,9 @@ func (h *transmitHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 //TransmitHandler handles the transmission of a new snippet
-func TransmitHandler() (string, http.Handler) { return transmitPath, &transmitHandler{} }
+func TransmitHandler(pubsubClient *pubsub.Client, storageBucket *storage.BucketHandle) (string, http.Handler) {
+	return transmitPath, &transmitHandler{
+		pubsubClient:  pubsubClient,
+		storageBucket: storageBucket,
+	}
+}

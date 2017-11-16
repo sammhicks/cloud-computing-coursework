@@ -4,23 +4,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="initial-scale=1, width=device-width">
+
     <link rel="stylesheet" type="text/css" href="index.css">
+
     <script src="https://code.jquery.com/jquery-3.2.1.min.js" crossorigin="anonymous" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="></script>
-    <script src="index.js" async defer></script>
+
+    <meta name="google-signin-scope" content="profile">
+    <meta name="google-signin-client_id" content="812818444262-dihtcq1cl07rrc4d3gs86obfs95dhe4i.apps.googleusercontent.com">
+    <script src="https://apis.google.com/js/platform.js"></script>
 
     <title>Cloud Computing Coursework</title>
 </head>
 
 <body>
-    <form id="transmit" method="POST" action="transmit">
-        <label>
-            <textarea name="snippet"></textarea>
-        </label>
-        <input type="submit">
-    </form>
-    <div id="snippets">
+    <div class="signedout">
+        <div class="g-signin2" data-theme="dark"></div>
+    </div>
+    <div class="signedin">
+        <form id="transmit" method="POST" action="transmit">
+            <label>
+                <textarea name="snippet"></textarea>
+            </label>
+            <input type="submit">
+        </form>
+        <ul id="snippets">
 
+        </ul>
     </div>
 </body>
+
+<script src="index.js"></script>
 
 </html>

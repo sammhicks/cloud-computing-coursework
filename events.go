@@ -1,23 +1,22 @@
 package main
 
 import (
-	"bufio"
 	"context"
-	"crypto/rand"
-	"encoding/base64"
-	"encoding/hex"
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"sync"
+	"time"
 
 	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/storage"
 )
 
 const eventsPath = "/events"
 
 type eventsHandler struct {
+	pubsubClient  *pubsub.Client
+	storageBucket *storage.BucketHandle
 }
 
 func (h *eventsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -25,36 +24,33 @@ func (h *eventsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		ctx := r.Context()
 
-		projectID, projectIDDeclared := os.LookupEnv("project")
-
-		if !projectIDDeclared {
-			log.Println("Project ID not declared")
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
-		}
-
-		client, err := pubsub.NewClient(ctx, projectID)
-		if err != nil {
-			log.Println("Failed to create client:", err)
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
-		}
-
-		topic := client.TopicInProject("test", projectID)
-
-		subNameBytes := make([]byte, 16)
-
-		_, err = rand.Read(subNameBytes)
+		keys, err := GoogleKeys()
 
 		if err != nil {
-			log.Println("Failed to generate random data:", err)
+			log.Println("Failed to fetch google public keys:", err)
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
 
-		subName := fmt.Sprintf("sub-%s", hex.EncodeToString(subNameBytes))
+		userID, _, err := VerifyToken(r.URL.Query().Get("token"), keys, "812818444262-dihtcq1cl07rrc4d3gs86obfs95dhe4i.apps.googleusercontent.com")
 
-		sub, err := client.CreateSubscription(ctx, subName, pubsub.SubscriptionConfig{Topic: topic})
+		if err != nil {
+			log.Println("Auth Error:", err)
+			http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+			return
+		}
+
+		topicName := fmt.Sprint("notifications-", userID)
+
+		topic, err := h.pubsubClient.CreateTopic(ctx, topicName)
+
+		if err != nil {
+			topic = h.pubsubClient.Topic(topicName)
+		}
+
+		subName := fmt.Sprintf("listen-%x-%x", userID, time.Now().UnixNano())
+
+		sub, err := h.pubsubClient.CreateSubscription(ctx, subName, pubsub.SubscriptionConfig{Topic: topic})
 
 		if err != nil {
 			log.Println("Failed to create subscriber:", err)
@@ -80,6 +76,8 @@ func (h *eventsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Connection", "keep-alive")
 		w.WriteHeader(http.StatusOK)
 
+		w.Write([]byte(""))
+
 		f.Flush()
 
 		eventLock := &sync.Mutex{}
@@ -89,31 +87,7 @@ func (h *eventsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			defer eventLock.Unlock()
 			defer m.Ack()
 
-			fmt.Fprint(w, "data:")
-
-			e := base64.NewEncoder(base64.StdEncoding, w)
-
-			bw := bufio.NewWriter(e)
-
-			if _, err := bw.Write(m.Data); err != nil {
-				log.Println("Error writing message body", err)
-				return
-			}
-
-			if err := bw.Flush(); err != nil {
-				log.Println("Error flushing message body", err)
-				return
-			}
-
-			if err := e.Close(); err != nil {
-				log.Println("Error closing base64 writer", err)
-				return
-			}
-
-			if _, err := fmt.Fprint(w, "\n\n"); err != nil {
-				log.Println("Error finialising event", err)
-				return
-			}
+			fmt.Fprint(w, "data:", string(m.Data), "\n\n")
 
 			f.Flush()
 		})
@@ -132,4 +106,9 @@ func (h *eventsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 //EventsHandler handles the streaming of new snippets arriving
-func EventsHandler() (string, http.Handler) { return eventsPath, &eventsHandler{} }
+func EventsHandler(pubsubClient *pubsub.Client, storageBucket *storage.BucketHandle) (string, http.Handler) {
+	return eventsPath, &eventsHandler{
+		pubsubClient:  pubsubClient,
+		storageBucket: storageBucket,
+	}
+}

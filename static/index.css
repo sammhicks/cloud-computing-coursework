@@ -1,3 +1,17 @@
+body {
+    display: flex;
+    flex-flow: column nowrap;
+    align-items: center;
+}
+
+body:not(.signedin) > div.signedin{
+    display: none;
+}
+
+body.signedin > div.signedout {
+    display: none;
+}
+
 #transmit {
     display:block;
 }
