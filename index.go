@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
@@ -22,18 +23,21 @@ func main() {
 		return
 	}
 
+	log.Println("Connecting to pubsub")
 	pubsubClient, err := pubsub.NewClient(ctx, projectID)
 	if err != nil {
 		log.Println("Failed to create client:", err)
 		return
 	}
 
+	log.Println("Connecting to storage")
 	storageClient, err := storage.NewClient(ctx)
 	if err != nil {
 		log.Println("Error creating storage client:", err)
 		return
 	}
 
+	log.Println("Creating bucket")
 	storageBucket := storageClient.Bucket("cloud-computing-coursework.appspot.com")
 
 	port, portDeclared := os.LookupEnv("PORT")
@@ -43,10 +47,12 @@ func main() {
 		log.Println("Port not declared, defaulting to", port)
 	}
 
+	stop := make(chan os.Signal, 1)
+
+	signal.Notify(stop, os.Interrupt)
+
 	mux := http.NewServeMux()
 
-	//mux.Handle(TransmitHandler(pubsubClient, storageBucket))
-	//mux.Handle(EventsHandler(pubsubClient, storageBucket))
 	mux.Handle(WebsocketHandler(pubsubClient, storageBucket))
 	mux.Handle("/", http.FileServer(http.Dir("static")))
 
@@ -54,5 +60,18 @@ func main() {
 		Addr:    ":" + port,
 		Handler: mux}
 
-	log.Println(s.ListenAndServe())
+	go func() {
+		log.Println("Creating server...")
+		if err := s.ListenAndServe(); err != nil {
+			log.Println("Error listening:", err)
+		}
+	}()
+
+	<-stop
+
+	signal.Stop(stop)
+
+	log.Println("Shutting down...")
+
+	s.Shutdown(context.Background())
 }
