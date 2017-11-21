@@ -77,6 +77,7 @@ func (h *websocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		go func() {
+			defer cancelCtx()
 			for {
 				_, dataReader, err := conn.NextReader()
 
