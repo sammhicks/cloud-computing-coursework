@@ -45,8 +45,9 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	mux.Handle(TransmitHandler(pubsubClient, storageBucket))
-	mux.Handle(EventsHandler(pubsubClient, storageBucket))
+	//mux.Handle(TransmitHandler(pubsubClient, storageBucket))
+	//mux.Handle(EventsHandler(pubsubClient, storageBucket))
+	mux.Handle(WebsocketHandler(pubsubClient, storageBucket))
 	mux.Handle("/", http.FileServer(http.Dir("static")))
 
 	s := &http.Server{

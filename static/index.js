@@ -2,7 +2,7 @@ $.when($.ready).then(function () {
     var auth2; // The Sign-In object.
     var googleUser; // The current user.
 
-    var eventSource;
+    var websocket;
 
     var initSigninV2 = function () {
         auth2 = gapi.auth2.init({
@@ -25,10 +25,10 @@ $.when($.ready).then(function () {
     var signinChanged = function (val) {
         console.log('Signin state changed to ', val);
 
-        if (val) {
-            $("body").addClass("signedin");
-        } else {
-            $("body").removeClass("signedin");
+        if (!val) {
+            if (websocket) {
+                websocket.close()
+            }
         }
     };
 
@@ -36,38 +36,47 @@ $.when($.ready).then(function () {
         console.log('User now: ', user);
         googleUser = user;
 
-        if (eventSource) {
-            eventSource.close();
+        if (websocket) {
+            websocket.close()
         }
 
         var token = user.getAuthResponse().id_token;
 
-        eventSource = new EventSource("/events?token=" + token);
-        eventSource.onmessage = function (event) {
+        var host = window.location.host;
+        var protocol = window.location.protocol == "http:" ? "ws" : "wss";
+
+        websocket = new WebSocket(protocol + "://" + host + "/ws");
+
+        websocket.onopen = function (ev) {
+            $("body").addClass("signedin");
+
+            websocket.send(token)
+        }
+
+        websocket.onclose = function (ev) {
+            console.log("Websocket closed:", ev);
+
+            $("body").removeClass("signedin");
+        }
+
+        websocket.onmessage = function (ev) {
             $("<a/>", {
                 text: "Message",
-                href: "https://storage.cloud.google.com/cloud-computing-coursework.appspot.com/" + event.data,
+                href: "https://storage.cloud.google.com/cloud-computing-coursework.appspot.com/" + ev.data,
                 target: "blank"
             }).wrap("<li/>").parent().appendTo("#snippets")
-        };
+        }
+
+        websocket.onerror = console.error;
     };
 
     $("#transmit").submit(function (transmitEvent) {
         transmitEvent.preventDefault();
 
-        if (auth2 && googleUser) {
-            var token = googleUser.getAuthResponse().id_token
+        if (auth2 && googleUser && websocket) {
             var message = $(transmitEvent.target).find("[name=snippet]").val();
 
-            $.post("/transmit?token=" + token, message, null, "text").done(function () {
-                console.log("Transmitted ", message);
-            }).fail(function (jqXHR, textStatus, errorThrown) {
-                console.group("Transmission failed:")
-                console.error("Transmit Event:", transmitEvent);
-                console.error("Status:", textStatus);
-                console.error("Error Thrown:", errorThrown);
-                console.groupEnd();
-            });
+            websocket.send(message);
         }
     });
 
