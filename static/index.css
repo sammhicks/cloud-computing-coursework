@@ -4,6 +4,11 @@ body, form {
     align-items: center;
 }
 
+#snippets {
+    display: flex;
+    flex-flow: column nowrap;
+}
+
 body:not(.signedin) > div.signedin{
     display: none;
 }

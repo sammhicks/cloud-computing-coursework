@@ -102,8 +102,18 @@ func (h *websocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 
-				if err := obj.ACL().Set(ctx, storage.ACLEntity(fmt.Sprint("user-", userEmail)), storage.RoleReader); err != nil {
-					log.Println("Error closing writer:", err)
+				if _, err := obj.Update(ctx, storage.ObjectAttrsToUpdate{
+					ACL: []storage.ACLRule{
+						{
+							Entity: storage.ACLEntity(fmt.Sprint("user-", userEmail)),
+							Role:   storage.RoleReader,
+						},
+					},
+					Metadata: map[string]string{
+						"foo": "bar",
+					},
+				}); err != nil {
+					log.Println("Error updating file attributes:", err)
 					return
 				}
 

@@ -11,14 +11,13 @@
 
     <meta name="google-signin-scope" content="profile">
     <meta name="google-signin-client_id" content="812818444262-dihtcq1cl07rrc4d3gs86obfs95dhe4i.apps.googleusercontent.com">
-    <script src="https://apis.google.com/js/platform.js"></script>
 
     <title>Cloud Computing Coursework</title>
 </head>
 
 <body>
     <div class="signedout">
-        <div class="g-signin2" data-theme="dark"></div>
+        <div class="g-signin2" data-onsuccess="onGoogleSignIn"></div>
     </div>
     <div class="signedin">
         <form id="transmit">
@@ -34,5 +33,6 @@
 </body>
 
 <script src="index.js"></script>
+<script src="https://apis.google.com/js/platform.js"></script>
 
 </html>

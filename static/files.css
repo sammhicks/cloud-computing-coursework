@@ -1,0 +1,26 @@
+body, #filedrop {
+    display: flex;
+    flex-flow: column nowrap;
+    align-items: center;
+}
+
+body.uploading #filedrop {
+    display: none;
+}
+
+#filedrop {
+    width: 60%;
+    height: 16em;
+
+    border: 4px double black;
+
+    justify-content: space-around;
+}
+
+#filedrop.validDragging {
+    border-color: yellow;
+}
+
+#filedrop.invalidDragging {
+    border-color: red;
+}
