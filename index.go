@@ -38,7 +38,7 @@ func main() {
 	}
 
 	log.Println("Creating bucket")
-	storageBucket := storageClient.Bucket("cloud-computing-coursework.appspot.com")
+	storageBucket := storageClient.Bucket("cloud-computing-coursework-storage")
 
 	port, portDeclared := os.LookupEnv("PORT")
 

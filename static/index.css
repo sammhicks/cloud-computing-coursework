@@ -1,18 +1,131 @@
-body, form {
+body {
+    margin: 0;
+    
+    position: absolute;
+
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 100%;
+
+    font-size: 100%;
+}
+
+body:not(.signedin) #signedin {
+    display: none;
+}
+
+body.signedin #signin {
+    display: none;
+}
+
+#disconnectederror {
+    background: red;
+    color: white;
+
+    padding: 0.5em;
+}
+
+body:not(.disconnected) #disconnectederror {
+    display: none
+}
+
+.flexrow, .flexcol {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    justify-content: space-around;
+}
+
+.flexrow {
+    flex-direction: row;
+}
+
+.flexcol {
+    flex-direction: column;
+}
+
+.flexrow > *, .flexcol > * {
+    flex: 1 0;
+}
+
+.flexend {
+    justify-content: flex-end;
+}
+
+.halfsize {
+    flex-grow: 0.5;
+}
+
+.minsize {
+    flex: 0 1;
+}
+
+.noresize {
+    flex: 0 0 auto;
+}
+
+.centered {
+    align-self: center;
+}
+
+.centertext {
+    text-align: center;
+}
+
+.sidepadding {
+    padding-left: 1em;
+    padding-right: 1em;
+}
+
+aside {
+    float: right;    
+}
+
+#pasteform {
+    padding: 1em;
+}
+
+#pasteform textarea {
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    resize: none;
+}
+
+#filedroparea {
+    margin: 1em;
+    border: 1px dashed black;
+
     display: flex;
     flex-flow: column nowrap;
     align-items: center;
+    justify-content: center;
 }
 
-#snippets {
+#filedroparea.validDragging {
+    border-color: green;
+}
+
+#filedroparea.invalidDragging {
+    border-color: red;
+}
+
+#filedroparea * {
+    font-size: 200%;
+}
+
+#output {
     display: flex;
     flex-flow: column nowrap;
 }
 
-body:not(.signedin) > div.signedin{
-    display: none;
+#output textarea {
+    width: 100%;
+    height: 8em;
+    box-sizing: border-box;
+    resize: none;
 }
 
-body.signedin > div.signedout {
-    display: none;
+#output > a {
+    align-self: center;
 }

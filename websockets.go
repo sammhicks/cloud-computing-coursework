@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -20,6 +23,19 @@ const websocketPath = "/ws"
 type websocketHandler struct {
 	pubsubClient  *pubsub.Client
 	storageBucket *storage.BucketHandle
+}
+
+type uploadHeader struct {
+	Name string
+	Type string
+}
+
+type fileNotification struct {
+	Name    string
+	Type    string
+	Created int64
+	URL     string
+	Body    string
 }
 
 func (h *websocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -68,7 +84,9 @@ func (h *websocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		log.Println("User", userID, "logged in")
 
-		topicName := fmt.Sprint("notifications-", userID)
+		userIDHash := sha256.Sum256([]byte(fmt.Sprint(userID)))
+
+		topicName := fmt.Sprintf("notifications-%x", userIDHash)
 
 		topic, err := h.pubsubClient.CreateTopic(ctx, topicName)
 
@@ -79,14 +97,27 @@ func (h *websocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		go func() {
 			defer cancelCtx()
 			for {
+				var header uploadHeader
+
+				if err := conn.ReadJSON(&header); err != nil {
+					log.Println("Error getting header:", err)
+					return
+				}
+
 				_, dataReader, err := conn.NextReader()
+
+				bodyBuffer := new(bytes.Buffer)
+
+				if header.Type == "text/x-clipboard" {
+					dataReader = io.TeeReader(dataReader, bodyBuffer)
+				}
 
 				if err != nil {
 					log.Println("Error getting next reader:", err)
 					return
 				}
 
-				objectName := fmt.Sprintf("snippets/%x/%x", userID, time.Now().UnixNano())
+				objectName := fmt.Sprintf("%x/%x", userIDHash, time.Now().UnixNano())
 
 				obj := h.storageBucket.Object(objectName)
 
@@ -102,7 +133,7 @@ func (h *websocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 
-				if _, err := obj.Update(ctx, storage.ObjectAttrsToUpdate{
+				if _, err := obj.Update(context.Background(), storage.ObjectAttrsToUpdate{
 					ACL: []storage.ACLRule{
 						{
 							Entity: storage.ACLEntity(fmt.Sprint("user-", userEmail)),
@@ -110,18 +141,40 @@ func (h *websocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						},
 					},
 					Metadata: map[string]string{
-						"foo": "bar",
+						"x-name": header.Name,
 					},
+					ContentType: header.Type,
 				}); err != nil {
 					log.Println("Error updating file attributes:", err)
 					return
 				}
 
-				topic.Publish(ctx, &pubsub.Message{Data: []byte(objectName)})
+				newAttrs, err := obj.Attrs(context.Background())
+
+				if err != nil {
+					log.Println("Error getting object attributes")
+				}
+
+				notification := &fileNotification{
+					Name:    header.Name,
+					Type:    newAttrs.ContentType,
+					Created: newAttrs.Created.UTC().UnixNano() / 1000000,
+					URL:     fmt.Sprint("https://storage.cloud.google.com/cloud-computing-coursework-storage/", objectName),
+					Body:    string(bodyBuffer.Bytes()),
+				}
+
+				notificationData, err := json.Marshal(notification)
+
+				if err != nil {
+					log.Println("Error marshalling notification:", err)
+					return
+				}
+
+				topic.Publish(context.Background(), &pubsub.Message{Data: notificationData})
 			}
 		}()
 
-		subName := fmt.Sprintf("listen-%x-%x", userID, time.Now().UnixNano())
+		subName := fmt.Sprintf("listen-%x-%x", userIDHash, time.Now().UnixNano())
 
 		sub, err := h.pubsubClient.CreateSubscription(ctx, subName, pubsub.SubscriptionConfig{Topic: topic})
 
@@ -139,6 +192,7 @@ func (h *websocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		eventLock := &sync.Mutex{}
 
 		err = sub.Receive(ctx, func(ctx context.Context, m *pubsub.Message) {
+			log.Println("Received message")
 			eventLock.Lock()
 			defer eventLock.Unlock()
 			defer m.Ack()

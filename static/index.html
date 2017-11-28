@@ -7,32 +7,55 @@
 
     <link rel="stylesheet" type="text/css" href="index.css">
 
-    <script src="https://code.jquery.com/jquery-3.2.1.min.js" crossorigin="anonymous" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="></script>
-
     <meta name="google-signin-scope" content="profile">
     <meta name="google-signin-client_id" content="812818444262-dihtcq1cl07rrc4d3gs86obfs95dhe4i.apps.googleusercontent.com">
+
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js" crossorigin="anonymous" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
+        defer></script>
+    <script src="index.js" defer></script>
+    <script src="https://apis.google.com/js/platform.js" defer></script>
 
     <title>Cloud Computing Coursework</title>
 </head>
 
-<body>
-    <div class="signedout">
-        <div class="g-signin2" data-onsuccess="onGoogleSignIn"></div>
+<body class="flexcol">
+    <div id="signin" class="flexcol">
+        <div class="centered minsize">
+            <div class="g-signin2" data-onsuccess="onGoogleSignIn"></div>
+        </div>
     </div>
-    <div class="signedin">
-        <form id="transmit">
-            <label>
-                <textarea name="snippet"></textarea>
-            </label>
-            <input type="submit">
-        </form>
-        <ul id="snippets">
-
-        </ul>
+    <div id="signedin" class="flexcol">
+        <div id="disconnectederror" class="flexcol minsize">
+            <span class="centertext centered">
+                Error. Lost connection to Server. Please refresh the browser
+            </span>
+        </div>
+        <header class="flexrow minsize">
+            <h2 class="centertext centered">Web Clipboard</h2>
+        </header>
+        <!--<div class="flexrow flexend minsize">
+            <aside class="noresize sidepadding">
+                Signed in as
+                <span id="username"></span>
+                <a id="signout" href="#">Sign out</a>
+            </aside>
+        </div>-->
+        <div class="flexrow halfsize">
+            <form id="pasteform" class="flexcol">
+                <div>
+                    <textarea placeholder="Paste Text Here!"></textarea>
+                </div>
+                <input type="submit" class="minsize" value="Send Text">
+            </form>
+            <div id="filedroparea">
+                <span>
+                    Drop Files Here!
+                </span>
+            </div>
+        </div>
+        <h2 class="minsize centertext">Clipboard items</h2>
+        <div id="receiveditems"></div>
     </div>
 </body>
-
-<script src="index.js"></script>
-<script src="https://apis.google.com/js/platform.js"></script>
 
 </html>
