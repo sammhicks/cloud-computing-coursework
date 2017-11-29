@@ -23,6 +23,20 @@ func main() {
 		return
 	}
 
+	googleLoginAppID, googleLoginAppIDDeclared := os.LookupEnv("GOOGLE_SIGN_IN_APP_ID")
+
+	if !googleLoginAppIDDeclared {
+		log.Println("Google Login App ID not declared")
+		return
+	}
+
+	storageBucketName, storageBucketNameDeclared := os.LookupEnv("STORAGE_BUCKET")
+
+	if !storageBucketNameDeclared {
+		log.Println("Storage Bucket not declared")
+		return
+	}
+
 	log.Println("Connecting to pubsub")
 	pubsubClient, err := pubsub.NewClient(ctx, projectID)
 	if err != nil {
@@ -38,7 +52,7 @@ func main() {
 	}
 
 	log.Println("Creating bucket")
-	storageBucket := storageClient.Bucket("cloud-computing-coursework-storage")
+	storageBucket := storageClient.Bucket(storageBucketName)
 
 	port, portDeclared := os.LookupEnv("PORT")
 
@@ -53,7 +67,7 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	mux.Handle(WebsocketHandler(pubsubClient, storageBucket))
+	mux.Handle(WebsocketHandler(googleLoginAppID, pubsubClient, storageBucketName, storageBucket))
 	mux.Handle("/", http.FileServer(http.Dir("static")))
 
 	s := &http.Server{
@@ -64,6 +78,7 @@ func main() {
 		log.Println("Creating server...")
 		if err := s.ListenAndServe(); err != nil {
 			log.Println("Error listening:", err)
+			stop <- os.Interrupt
 		}
 	}()
 

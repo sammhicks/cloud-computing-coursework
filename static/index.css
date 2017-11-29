@@ -94,7 +94,7 @@ aside {
 
 #filedroparea {
     margin: 1em;
-    border: 1px dashed black;
+    border: 2px dashed black;
 
     display: flex;
     flex-flow: column nowrap;
@@ -103,7 +103,7 @@ aside {
 }
 
 #filedroparea.validDragging {
-    border-color: green;
+    border-color: limegreen;
 }
 
 #filedroparea.invalidDragging {

@@ -19,6 +19,8 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+const storageURL = "https://storage.cloud.google.com"
+
 const clipboardMimeType = "text/x-clipboard"
 
 const metaDataName = "x-name"
@@ -36,12 +38,12 @@ type fileNotification struct {
 	Body    string
 }
 
-func createFileNotification(objAttrs *storage.ObjectAttrs, body *bytes.Buffer) *fileNotification {
+func createFileNotification(bucketName string, objAttrs *storage.ObjectAttrs, body *bytes.Buffer) *fileNotification {
 	return &fileNotification{
 		Name:    objAttrs.Metadata[metaDataName],
 		Type:    objAttrs.ContentType,
 		Created: objAttrs.Created.UTC().UnixNano() / 1000000,
-		URL:     fmt.Sprint("https://storage.cloud.google.com/cloud-computing-coursework-storage/", objAttrs.Name),
+		URL:     fmt.Sprintf("%s/%s/%s", storageURL, bucketName, objAttrs.Name),
 		Body:    string(body.Bytes()),
 	}
 }
@@ -49,8 +51,10 @@ func createFileNotification(objAttrs *storage.ObjectAttrs, body *bytes.Buffer) *
 const websocketPath = "/ws"
 
 type websocketHandler struct {
-	pubsubClient  *pubsub.Client
-	storageBucket *storage.BucketHandle
+	googleLoginAppID  string
+	pubsubClient      *pubsub.Client
+	storageBucketName string
+	storageBucket     *storage.BucketHandle
 }
 
 func (h *websocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -92,7 +96,7 @@ func (h *websocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		userID, userEmail, err := VerifyToken(string(payload), keys, "812818444262-dihtcq1cl07rrc4d3gs86obfs95dhe4i.apps.googleusercontent.com")
+		userID, userEmail, err := VerifyToken(string(payload), keys, h.googleLoginAppID)
 
 		if err != nil {
 			log.Println("Auth Error:", err)
@@ -123,18 +127,18 @@ func (h *websocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 				_, dataReader, err := conn.NextReader()
 
+				if err != nil {
+					log.Println("Error getting next reader:", err)
+					return
+				}
+
 				bodyBuffer := new(bytes.Buffer)
 
 				if header.Type == clipboardMimeType {
 					dataReader = io.TeeReader(dataReader, bodyBuffer)
 				}
 
-				if err != nil {
-					log.Println("Error getting next reader:", err)
-					return
-				}
-
-				objectName := fmt.Sprintf("%x/%x", userIDHash, time.Now().UnixNano())
+				objectName := fmt.Sprintf("%x/%016x", userIDHash, time.Now().UnixNano())
 
 				obj := h.storageBucket.Object(objectName)
 
@@ -172,7 +176,7 @@ func (h *websocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					log.Println("Error getting object attributes")
 				}
 
-				notificationData, err := json.Marshal(createFileNotification(newAttrs, bodyBuffer))
+				notificationData, err := json.Marshal(createFileNotification(h.storageBucketName, newAttrs, bodyBuffer))
 
 				if err != nil {
 					log.Println("Error marshalling notification:", err)
@@ -238,7 +242,7 @@ func (h *websocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 
-				notification := createFileNotification(objAttrs, bodyBuffer)
+				notification := createFileNotification(h.storageBucketName, objAttrs, bodyBuffer)
 
 				websocketLock.Lock()
 				err = conn.WriteJSON(notification)
@@ -274,9 +278,11 @@ func (h *websocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 //WebsocketHandler handles the transmission of a new snippet
-func WebsocketHandler(pubsubClient *pubsub.Client, storageBucket *storage.BucketHandle) (string, http.Handler) {
+func WebsocketHandler(googleLoginAppID string, pubsubClient *pubsub.Client, storageBucketName string, storageBucket *storage.BucketHandle) (string, http.Handler) {
 	return websocketPath, &websocketHandler{
-		pubsubClient:  pubsubClient,
-		storageBucket: storageBucket,
+		googleLoginAppID:  googleLoginAppID,
+		pubsubClient:      pubsubClient,
+		storageBucketName: storageBucketName,
+		storageBucket:     storageBucket,
 	}
 }

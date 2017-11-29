@@ -18,6 +18,8 @@ class Lock {
 function onGoogleSignIn(googleUser) {
     $("body").addClass("signedin");
 
+    $("#username").text(googleUser.getBasicProfile().getName());
+
     const token = googleUser.getAuthResponse().id_token;
 
     const host = window.location.host;
@@ -26,8 +28,6 @@ function onGoogleSignIn(googleUser) {
     const websocket = new WebSocket(protocol + "://" + host + "/ws");
 
     websocket.onopen = function (ev) {
-        $("body").addClass("signedin");
-
         websocket.send(token)
     }
 
@@ -67,13 +67,7 @@ function onGoogleSignIn(googleUser) {
 }
 
 function loadFile(file) {
-    const progressBar = $("<progress/>", {
-        "value": 0,
-        "max": file.size
-    });
     return new Promise(function (resolve, reject) {
-        $("#progressbars").append(progressBar);
-
         const fileReader = new FileReader();
 
         fileReader.onabort = function () {
@@ -85,20 +79,14 @@ function loadFile(file) {
         }
 
         fileReader.onprogress = function (ev) {
-            progressBar.attr("value", ev.loaded);
+
         }
 
         fileReader.onloadend = function (ev) {
             resolve(this.result);
         };
 
-        fileReader.readAsBinaryString(file);
-    }).then(function (value) {
-        progressBar.remove();
-        return value;
-    }, function (reason) {
-        progressBar.remove();
-        return reason;
+        fileReader.readAsArrayBuffer(file);
     });
 }
 
@@ -160,7 +148,9 @@ $.when($.ready).then(function () {
     }).on("dragenter dragover", function (ev) {
         const types = ev.originalEvent.dataTransfer.types;
 
-        if ($.inArray("Files", types)) {
+        console.log(types);
+
+        if ($.inArray("Files", types) > -1) {
             $(this).addClass("validDragging").removeClass("invalidDragging");
 
             ev.preventDefault();
