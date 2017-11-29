@@ -39,6 +39,8 @@ function onGoogleSignIn(googleUser) {
     websocket.onmessage = function (ev) {
         const message = JSON.parse(ev.data);
 
+        console.log("Message:", message);
+
         switch (message.Type) {
             case "text/x-clipboard":
                 $("<div/>", {
@@ -51,7 +53,7 @@ function onGoogleSignIn(googleUser) {
                 $("<div/>", {
                     "x-created": message.Created
                 }).append($("<a/>", {
-                    "text": message.Body,
+                    "text": message.Name,
                     "href": message.URL,
                     "target": "blank"
                 })).appendTo("#receiveditems");
@@ -141,11 +143,11 @@ $.when($.ready).then(function () {
         transmitEvent.preventDefault();
 
         if (websocketLock) {
-            var message = $(transmitEvent.target).find("[name=snippet]").val();
+            var message = $(transmitEvent.target).find("textarea").val();
 
             websocketLock.lock(function (websocket) {
                 websocket.send(JSON.stringify({
-                    "Type": "text"
+                    "Type": "text/x-clipboard"
                 }))
 
                 websocket.send(message);

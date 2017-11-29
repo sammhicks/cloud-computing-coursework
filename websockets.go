@@ -192,7 +192,6 @@ func (h *websocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		eventLock := &sync.Mutex{}
 
 		err = sub.Receive(ctx, func(ctx context.Context, m *pubsub.Message) {
-			log.Println("Received message")
 			eventLock.Lock()
 			defer eventLock.Unlock()
 			defer m.Ack()

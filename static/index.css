@@ -114,18 +114,25 @@ aside {
     font-size: 200%;
 }
 
-#output {
+#receiveditems {
     display: flex;
     flex-flow: column nowrap;
 }
 
-#output textarea {
+#receiveditems > div {
+    display: flex;
+    flex-flow: column nowrap;
+
+    margin: 0 0.5em 0.5em;
+}
+
+#receiveditems textarea {
     width: 100%;
     height: 8em;
     box-sizing: border-box;
     resize: none;
 }
 
-#output > a {
+#receiveditems a {
     align-self: center;
 }
