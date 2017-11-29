@@ -1,0 +1,5 @@
+runtime: go
+env: flex
+env_variables:
+  GOOGLE_SIGN_IN_APP_ID: '812818444262-dihtcq1cl07rrc4d3gs86obfs95dhe4i.apps.googleusercontent.com'
+  STORAGE_BUCKET: 'cloud-computing-coursework-storage'
