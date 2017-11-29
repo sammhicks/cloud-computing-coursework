@@ -14,16 +14,14 @@ import (
 
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
+	"google.golang.org/api/iterator"
 
 	"github.com/gorilla/websocket"
 )
 
-const websocketPath = "/ws"
+const clipboardMimeType = "text/x-clipboard"
 
-type websocketHandler struct {
-	pubsubClient  *pubsub.Client
-	storageBucket *storage.BucketHandle
-}
+const metaDataName = "x-name"
 
 type uploadHeader struct {
 	Name string
@@ -36,6 +34,23 @@ type fileNotification struct {
 	Created int64
 	URL     string
 	Body    string
+}
+
+func createFileNotification(objAttrs *storage.ObjectAttrs, body *bytes.Buffer) *fileNotification {
+	return &fileNotification{
+		Name:    objAttrs.Metadata[metaDataName],
+		Type:    objAttrs.ContentType,
+		Created: objAttrs.Created.UTC().UnixNano() / 1000000,
+		URL:     fmt.Sprint("https://storage.cloud.google.com/cloud-computing-coursework-storage/", objAttrs.Name),
+		Body:    string(body.Bytes()),
+	}
+}
+
+const websocketPath = "/ws"
+
+type websocketHandler struct {
+	pubsubClient  *pubsub.Client
+	storageBucket *storage.BucketHandle
 }
 
 func (h *websocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -55,6 +70,8 @@ func (h *websocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			log.Println("Failed to upgrade to ws:", err)
 			return
 		}
+
+		defer conn.Close()
 
 		keys, err := GoogleKeys()
 
@@ -108,7 +125,7 @@ func (h *websocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 				bodyBuffer := new(bytes.Buffer)
 
-				if header.Type == "text/x-clipboard" {
+				if header.Type == clipboardMimeType {
 					dataReader = io.TeeReader(dataReader, bodyBuffer)
 				}
 
@@ -141,7 +158,7 @@ func (h *websocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						},
 					},
 					Metadata: map[string]string{
-						"x-name": header.Name,
+						metaDataName: header.Name,
 					},
 					ContentType: header.Type,
 				}); err != nil {
@@ -155,15 +172,7 @@ func (h *websocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					log.Println("Error getting object attributes")
 				}
 
-				notification := &fileNotification{
-					Name:    header.Name,
-					Type:    newAttrs.ContentType,
-					Created: newAttrs.Created.UTC().UnixNano() / 1000000,
-					URL:     fmt.Sprint("https://storage.cloud.google.com/cloud-computing-coursework-storage/", objectName),
-					Body:    string(bodyBuffer.Bytes()),
-				}
-
-				notificationData, err := json.Marshal(notification)
+				notificationData, err := json.Marshal(createFileNotification(newAttrs, bodyBuffer))
 
 				if err != nil {
 					log.Println("Error marshalling notification:", err)
@@ -189,11 +198,63 @@ func (h *websocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}()
 
-		eventLock := &sync.Mutex{}
+		websocketLock := &sync.Mutex{}
+
+		go func() {
+			objIter := h.storageBucket.Objects(ctx, &storage.Query{
+				Prefix: fmt.Sprintf("%x", userIDHash),
+			})
+
+			for {
+				objAttrs, err := objIter.Next()
+
+				if err == iterator.Done {
+					break
+				}
+
+				if err != nil {
+					log.Println("Error fetching object from history:", err)
+					cancelCtx()
+					return
+				}
+
+				bodyBuffer := new(bytes.Buffer)
+
+				if objAttrs.ContentType == clipboardMimeType {
+					obj := h.storageBucket.Object(objAttrs.Name)
+
+					objReader, err := obj.NewReader(ctx)
+
+					if err != nil {
+						log.Println("Error getting object reader:", err)
+						cancelCtx()
+						return
+					}
+
+					if _, err := io.Copy(bodyBuffer, objReader); err != nil {
+						log.Println("Error reading object data from history:", err)
+						cancelCtx()
+						return
+					}
+				}
+
+				notification := createFileNotification(objAttrs, bodyBuffer)
+
+				websocketLock.Lock()
+				err = conn.WriteJSON(notification)
+				websocketLock.Unlock()
+
+				if err != nil {
+					log.Println("Error sending notification:", err)
+					cancelCtx()
+					return
+				}
+			}
+		}()
 
 		err = sub.Receive(ctx, func(ctx context.Context, m *pubsub.Message) {
-			eventLock.Lock()
-			defer eventLock.Unlock()
+			websocketLock.Lock()
+			defer websocketLock.Unlock()
 			defer m.Ack()
 
 			if err := conn.WriteMessage(websocket.TextMessage, m.Data); err != nil {
