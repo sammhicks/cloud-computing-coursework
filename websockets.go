@@ -12,41 +12,14 @@ import (
 	"sync"
 	"time"
 
+	oldContext "golang.org/x/net/context"
+
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/iterator"
 
 	"github.com/gorilla/websocket"
 )
-
-const storageURL = "https://storage.cloud.google.com"
-
-const clipboardMimeType = "text/x-clipboard"
-
-const metaDataName = "x-name"
-
-type uploadHeader struct {
-	Name string
-	Type string
-}
-
-type fileNotification struct {
-	Name    string
-	Type    string
-	Created int64
-	URL     string
-	Body    string
-}
-
-func createFileNotification(bucketName string, objAttrs *storage.ObjectAttrs, body *bytes.Buffer) *fileNotification {
-	return &fileNotification{
-		Name:    objAttrs.Metadata[metaDataName],
-		Type:    objAttrs.ContentType,
-		Created: objAttrs.Created.UTC().UnixNano() / 1000000,
-		URL:     fmt.Sprintf("%s/%s/%s", storageURL, bucketName, objAttrs.Name),
-		Body:    string(body.Bytes()),
-	}
-}
 
 const websocketPath = "/ws"
 
@@ -63,6 +36,16 @@ func (h *websocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ctx, cancelCtx := context.WithCancel(r.Context())
 
 		defer cancelCtx()
+
+		w.Header().Set("X-Accel-Buffering", "no")
+
+		hBuf := new(bytes.Buffer)
+
+		if r.Header.Write(hBuf) != nil {
+			log.Println("Header Error")
+		} else {
+			log.Println(string(hBuf.Bytes()))
+		}
 
 		var upgrader = websocket.Upgrader{
 			ReadBufferSize:  1024,
@@ -256,7 +239,7 @@ func (h *websocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}()
 
-		err = sub.Receive(ctx, func(ctx context.Context, m *pubsub.Message) {
+		err = sub.Receive(ctx, func(ctx oldContext.Context, m *pubsub.Message) {
 			websocketLock.Lock()
 			defer websocketLock.Unlock()
 			defer m.Ack()

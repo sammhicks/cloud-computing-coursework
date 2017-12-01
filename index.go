@@ -5,10 +5,11 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/signal"
 
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
+
+	"google.golang.org/appengine"
 )
 
 func main() {
@@ -16,7 +17,7 @@ func main() {
 
 	defer cancelCtx()
 
-	projectID, projectIDDeclared := os.LookupEnv("project")
+	projectID, projectIDDeclared := os.LookupEnv("PROJECT_ID")
 
 	if !projectIDDeclared {
 		log.Println("Project ID not declared")
@@ -54,39 +55,11 @@ func main() {
 	log.Println("Creating bucket")
 	storageBucket := storageClient.Bucket(storageBucketName)
 
-	port, portDeclared := os.LookupEnv("PORT")
+	http.Handle(WebsocketHandler(googleLoginAppID, pubsubClient, storageBucketName, storageBucket))
+	http.Handle(TestHandler(googleLoginAppID, pubsubClient, storageBucketName, storageBucket))
+	http.Handle("/", http.FileServer(http.Dir("static")))
 
-	if !portDeclared {
-		port = "8080"
-		log.Println("Port not declared, defaulting to", port)
-	}
+	log.Println("Starting AppEngine")
 
-	stop := make(chan os.Signal, 1)
-
-	signal.Notify(stop, os.Interrupt)
-
-	mux := http.NewServeMux()
-
-	mux.Handle(WebsocketHandler(googleLoginAppID, pubsubClient, storageBucketName, storageBucket))
-	mux.Handle("/", http.FileServer(http.Dir("static")))
-
-	s := &http.Server{
-		Addr:    ":" + port,
-		Handler: mux}
-
-	go func() {
-		log.Println("Creating server...")
-		if err := s.ListenAndServe(); err != nil {
-			log.Println("Error listening:", err)
-			stop <- os.Interrupt
-		}
-	}()
-
-	<-stop
-
-	signal.Stop(stop)
-
-	log.Println("Shutting down...")
-
-	s.Shutdown(context.Background())
+	appengine.Main()
 }
