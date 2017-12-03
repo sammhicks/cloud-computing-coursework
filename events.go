@@ -32,6 +32,12 @@ type eventsHandler struct {
 	datastoreClient   *datastore.Client
 }
 
+type googleIdentity struct {
+	Aud   string
+	Email string
+	Sub   string
+}
+
 func (h *eventsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
@@ -57,21 +63,40 @@ func (h *eventsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		identityToken := r.URL.Query().Get("token")
 
-		keys, err := GoogleKeys()
+		identityResp, err := http.Get("https://www.googleapis.com/oauth2/v3/tokeninfo?id_token=" + identityToken)
 
 		if err != nil {
-			log.Println("Failed to fetch google public keys:", err)
+			log.Println("Failed to authenticate token:", err)
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
 
-		userID, userEmail, err := VerifyToken(identityToken, keys, h.googleLoginAppID)
-
-		if err != nil {
-			log.Println("Auth Error:", err)
+		if identityResp.StatusCode != http.StatusOK {
+			log.Println("Invalid token")
 			http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 			return
 		}
+
+		defer identityResp.Body.Close()
+
+		identityRespDecoder := json.NewDecoder(identityResp.Body)
+
+		var userIdentity googleIdentity
+
+		if err := identityRespDecoder.Decode(&userIdentity); err != nil {
+			log.Println("Failed to parse identity:", err)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
+
+		if userIdentity.Aud != h.googleLoginAppID {
+			log.Println("Invalid audience:", userIdentity.Aud)
+			http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+			return
+		}
+
+		userID := userIdentity.Sub
+		userEmail := userIdentity.Email
 
 		userIDHashBytes := sha256.Sum256([]byte(fmt.Sprint(userID)))
 
