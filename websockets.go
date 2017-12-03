@@ -23,6 +23,12 @@ import (
 
 const websocketPath = "/ws"
 
+type uploadHeader struct {
+	Name  string
+	Type  string
+	Token string
+}
+
 type websocketHandler struct {
 	googleLoginAppID  string
 	pubsubClient      *pubsub.Client

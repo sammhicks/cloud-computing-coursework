@@ -1,18 +1,28 @@
 "use strict";
 
-var websocketLock;
+var sessionToken;
 
-class Lock {
-    constructor(item) {
-        this.promise = Promise.resolve();
-        this.item = item;
-    }
+function uploadFile(name, type, body) {
+    return new Promise(function (resolve, reject) {
+        const xmlHttp = new XMLHttpRequest();
 
-    lock(action) {
-        this.promise = this.promise.then(() => action(this.item));
+        xmlHttp.onreadystatechange = function () {
+            if (this.readyState == this.DONE) {
+                if (this.status == 200) {
+                    resolve(this);
+                } else {
+                    reject(this);
+                }
+            }
+        }
 
-        return this.promise;
-    }
+        xmlHttp.open("POST", "/upload?" + $.param({
+            "name": name,
+            "token": sessionToken
+        }, true));
+        xmlHttp.setRequestHeader("Content-type", type);
+        xmlHttp.send(body);
+    })
 }
 
 function onGoogleSignIn(googleUser) {
@@ -22,48 +32,40 @@ function onGoogleSignIn(googleUser) {
 
     const token = googleUser.getAuthResponse().id_token;
 
-    const host = window.location.host;
-    const protocol = window.location.protocol == "http:" ? "ws" : "wss";
+    const eventSource = new EventSource("/events?token=" + token);
 
-    const websocket = new WebSocket(protocol + "://" + host + "/ws");
-
-    websocket.onopen = function (ev) {
-        websocket.send(token)
-    }
-
-    websocket.onclose = function (ev) {
-        console.log("Websocket closed:", ev);
+    eventSource.onerror = function (ev) {
+        console.log("Event Source closed:", ev);
+        this.close()
         $("body").addClass("disconnected");
     }
 
-    websocket.onmessage = function (ev) {
-        const message = JSON.parse(ev.data);
+    eventSource.onmessage = function (ev) {
+        if (sessionToken == undefined) {
+            sessionToken = ev.data.trim();
+        } else {
+            const message = JSON.parse(atob(ev.data.trim()));
 
-        console.log("Message:", message);
-
-        switch (message.Type) {
-            case "text/x-clipboard":
-                $("<div/>", {
-                    "x-created": message.Created
-                }).append($("<textarea/>", {
-                    "val": message.Body
-                })).appendTo("#receiveditems");
-                break;
-            default:
-                $("<div/>", {
-                    "x-created": message.Created
-                }).append($("<a/>", {
-                    "text": message.Name,
-                    "href": message.URL,
-                    "target": "blank"
-                })).appendTo("#receiveditems");
-                break;
+            switch (message.Type) {
+                case "text/x-clipboard":
+                    $("<div/>", {
+                        "x-created": message.Created
+                    }).append($("<textarea/>", {
+                        "val": message.Body
+                    })).appendTo("#receiveditems");
+                    break;
+                default:
+                    $("<div/>", {
+                        "x-created": message.Created
+                    }).append($("<a/>", {
+                        "text": message.Name,
+                        "href": message.URL,
+                        "target": "blank"
+                    })).appendTo("#receiveditems");
+                    break;
+            }
         }
     }
-
-    websocket.onerror = console.error;
-
-    websocketLock = new Lock(websocket);
 }
 
 function loadFile(file) {
@@ -79,10 +81,11 @@ function loadFile(file) {
         }
 
         fileReader.onprogress = function (ev) {
-
+            console.log(ev);
         }
 
         fileReader.onloadend = function (ev) {
+            console.log(ev);
             resolve(this.result);
         };
 
@@ -93,20 +96,8 @@ function loadFile(file) {
 async function uploadFiles(files) {
     $("body").addClass("uploading");
 
-    try {
-        for (let i = 0; i < files.length; i++) {
-            await websocketLock.lock(async function (websocket) {
-                websocket.send(JSON.stringify({
-                    "Name": files[i].name,
-                    "Type": files[i].type
-                }))
-                const body = await loadFile(files[i]);
-
-                websocket.send(body);
-            });
-        }
-    } catch (e) {
-        console.error(e)
+    for (let i = 0; i < files.length; i++) {
+        await uploadFile(files[i].name, files[i].type, await loadFile(files[i]));
     }
 
     $("body").removeClass("uploading");
@@ -127,28 +118,16 @@ $.when($.ready).then(function () {
 
     })*/
 
-    $("#pasteform").submit(function (transmitEvent) {
+    $("#pasteform").submit(async function (transmitEvent) {
         transmitEvent.preventDefault();
 
-        if (websocketLock) {
-            var message = $(transmitEvent.target).find("textarea").val();
-
-            websocketLock.lock(function (websocket) {
-                websocket.send(JSON.stringify({
-                    "Type": "text/x-clipboard"
-                }))
-
-                websocket.send(message);
-            });
-        }
+        await uploadFile("Clipboard", "text/x-clipboard", $(transmitEvent.target).find("textarea").val());
     });
 
     $("#filedroparea").on("dragstart drag", function (ev) {
         ev.preventDefault();
     }).on("dragenter dragover", function (ev) {
         const types = ev.originalEvent.dataTransfer.types;
-
-        console.log(types);
 
         if ($.inArray("Files", types) > -1) {
             $(this).addClass("validDragging").removeClass("invalidDragging");
@@ -161,14 +140,13 @@ $.when($.ready).then(function () {
         $(this).removeClass("validDragging").removeClass("invalidDragging");
 
         ev.preventDefault();
-    }).on("drop", function (ev) {
+    }).on("drop", async function (ev) {
         const types = ev.originalEvent.dataTransfer.types;
 
         if ($.inArray("Files", types)) {
             const files = ev.originalEvent.dataTransfer.files;
 
-            console.log("Dropped!");
-            uploadFiles(files);
+            await uploadFiles(files);
         }
 
         ev.preventDefault();

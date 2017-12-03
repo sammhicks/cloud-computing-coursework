@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,20 +10,12 @@ import (
 	"net/http"
 	"time"
 
-	"bufio"
-
 	"cloud.google.com/go/datastore"
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
 )
 
 const uploadPath = "/upload"
-
-type uploadHeader struct {
-	Name  string
-	Type  string
-	Token string
-}
 
 type uploadHandler struct {
 	googleLoginAppID  string
@@ -34,30 +25,6 @@ type uploadHandler struct {
 	datastoreClient   *datastore.Client
 }
 
-func readHeader(r *http.Request) (header *uploadHeader, bodyReader io.Reader, err error) {
-	bufBodyReader := bufio.NewReader(r.Body)
-
-	bodyReader = bufBodyReader
-
-	headerString, err := bufBodyReader.ReadString('\n')
-
-	if err != nil {
-		return
-	}
-
-	headerBytes, err := base64.StdEncoding.DecodeString(headerString)
-
-	if err != nil {
-		return
-	}
-
-	header = new(uploadHeader)
-
-	err = json.Unmarshal(headerBytes, header)
-
-	return
-}
-
 func (h *uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "POST":
@@ -65,15 +32,15 @@ func (h *uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		defer cancelCtx()
 
-		header, bodyReader, err := readHeader(r)
+		uploadName := r.URL.Query().Get("name")
 
-		if err != nil {
-			log.Println("Error reading header:", err)
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
-		}
+		sessionToken := r.URL.Query().Get("token")
 
-		user, email, err := getUser(ctx, h.datastoreClient, header.Token)
+		uploadType := r.Header.Get(http.CanonicalHeaderKey("Content-Type"))
+
+		var bodyReader io.Reader = r.Body
+
+		user, email, err := getUser(ctx, h.datastoreClient, sessionToken)
 
 		if err != nil {
 			log.Println("Invalid Token")
@@ -81,21 +48,15 @@ func (h *uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		topic, err := createTopic(ctx, h.pubsubClient, user)
-
-		if err != nil {
-			log.Println("Error creating topic:", err)
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
-		}
+		topic := createTopic(ctx, h.pubsubClient, user)
 
 		bodyBuffer := new(bytes.Buffer)
 
-		if header.Type == clipboardMimeType {
+		if uploadType == clipboardMimeType {
 			bodyReader = io.TeeReader(bodyReader, bodyBuffer)
 		}
 
-		objectName := fmt.Sprintf("%x/%016x", user, time.Now().UnixNano())
+		objectName := fmt.Sprintf("%s/%016x", user, time.Now().UnixNano())
 
 		obj := h.storageBucket.Object(objectName)
 
@@ -121,12 +82,12 @@ func (h *uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				},
 			},
 			Metadata: map[string]string{
-				metaDataName: header.Name,
+				metaDataName: uploadName,
 			},
 		}
 
-		if header.Type != "" {
-			objectAttrsToUpdate.ContentType = header.Type
+		if uploadType != "" {
+			objectAttrsToUpdate.ContentType = uploadType
 		}
 
 		if _, err := obj.Update(context.Background(), objectAttrsToUpdate); err != nil {

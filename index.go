@@ -5,11 +5,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 
+	"cloud.google.com/go/datastore"
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
-
-	"google.golang.org/appengine"
 )
 
 func main() {
@@ -38,28 +38,70 @@ func main() {
 		return
 	}
 
-	log.Println("Connecting to pubsub")
+	log.Println("Connecting to PubSub")
 	pubsubClient, err := pubsub.NewClient(ctx, projectID)
 	if err != nil {
-		log.Println("Failed to create client:", err)
+		log.Println("Error Connecting to PubSub:", err)
 		return
 	}
 
-	log.Println("Connecting to storage")
+	log.Println("Connecting to FileStore")
 	storageClient, err := storage.NewClient(ctx)
 	if err != nil {
-		log.Println("Error creating storage client:", err)
+		log.Println("Error connecting to FileStore:", err)
 		return
 	}
 
 	log.Println("Creating bucket")
 	storageBucket := storageClient.Bucket(storageBucketName)
 
-	http.Handle(WebsocketHandler(googleLoginAppID, pubsubClient, storageBucketName, storageBucket))
-	http.Handle(TestHandler(googleLoginAppID, pubsubClient, storageBucketName, storageBucket))
-	http.Handle("/", http.FileServer(http.Dir("static")))
+	log.Println("Connecting to DataStore")
+	datastoreClient, err := datastore.NewClient(ctx, projectID)
+	if err != nil {
+		log.Println("Error connecting to DataStore:", err)
+	}
 
-	log.Println("Starting AppEngine")
+	port, portDeclared := os.LookupEnv("PORT")
 
-	appengine.Main()
+	if !portDeclared {
+		port = "8080"
+		log.Println("Port not declared, defaulting to", port)
+	}
+
+	stop := make(chan os.Signal, 1)
+
+	signal.Notify(stop, os.Interrupt)
+
+	mux := http.NewServeMux()
+
+	mux.Handle(EventsHandler(ctx, googleLoginAppID, pubsubClient, storageBucketName, storageBucket, datastoreClient))
+	mux.Handle(UploadHandler(googleLoginAppID, pubsubClient, storageBucketName, storageBucket, datastoreClient))
+	mux.Handle("/", http.FileServer(http.Dir("static")))
+
+	s := &http.Server{
+		Addr:    ":" + port,
+		Handler: mux}
+
+	go func() {
+		log.Println("Creating server...")
+
+		defer cancelCtx()
+
+		if err := s.ListenAndServe(); err == http.ErrServerClosed {
+			log.Println("Server closed")
+		} else if err != nil {
+			log.Println("Error listening:", err)
+			stop <- os.Interrupt
+		}
+	}()
+
+	<-stop
+
+	signal.Stop(stop)
+
+	log.Println("Shutting down...")
+
+	if err := s.Shutdown(context.Background()); err != nil {
+		log.Println("Error shutting down server:", err)
+	}
 }

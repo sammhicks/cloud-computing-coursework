@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"io"
+	"log"
 
 	"cloud.google.com/go/datastore"
 )
@@ -19,20 +20,14 @@ type sessionCookie struct {
 	Token string
 }
 
-func lookupCookie(ctx context.Context, c *datastore.Client, token string) (key *datastore.Key, cookie *sessionCookie, err error) {
+func getUser(ctx context.Context, c *datastore.Client, token string) (user string, email string, err error) {
 	query := datastore.NewQuery(cookieKind).Filter("Token=", token).Limit(1)
 
 	it := c.Run(ctx, query)
 
-	cookie = new(sessionCookie)
+	var cookie sessionCookie
 
-	key, err = it.Next(cookie)
-
-	return
-}
-
-func getUser(ctx context.Context, c *datastore.Client, token string) (user string, email string, err error) {
-	_, cookie, err := lookupCookie(ctx, c, token)
+	_, err = it.Next(&cookie)
 
 	if err != nil {
 		return
@@ -60,18 +55,19 @@ func genToken(ctx context.Context, c *datastore.Client, user string, email strin
 		Token: token,
 	}
 
-	_, err = c.Put(ctx, datastore.IncompleteKey(cookieKind, nil), &cookie)
-	return
-}
-
-func removeToken(ctx context.Context, c *datastore.Client, token string) (err error) {
-	key, _, err := lookupCookie(ctx, c, token)
+	key, err := c.Put(ctx, datastore.IncompleteKey(cookieKind, nil), &cookie)
 
 	if err != nil {
 		return
 	}
 
-	err = c.Delete(ctx, key)
+	go func() {
+		<-ctx.Done()
+		if err := c.Delete(context.Background(), key); err != nil {
+			log.Println("Error removing token:", err)
+			return
+		}
+	}()
 
 	return
 }

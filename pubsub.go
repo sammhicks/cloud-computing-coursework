@@ -9,16 +9,20 @@ import (
 	"cloud.google.com/go/pubsub"
 )
 
-func createTopic(ctx context.Context, client *pubsub.Client, userIDHash string) (*pubsub.Topic, error) {
-	return client.CreateTopic(ctx, fmt.Sprintf("notifications-", userIDHash))
+func createTopic(ctx context.Context, client *pubsub.Client, userIDHash string) *pubsub.Topic {
+	topicName := fmt.Sprint("notifications-", userIDHash)
+
+	topic, err := client.CreateTopic(ctx, topicName)
+
+	if err != nil {
+		topic = client.Topic(topicName)
+	}
+
+	return topic
 }
 
 func createSubscription(ctx context.Context, client *pubsub.Client, userIDHash string) (sub *pubsub.Subscription, err error) {
-	topic, err := createTopic(ctx, client, userIDHash)
-
-	if err != nil {
-		return
-	}
+	topic := createTopic(ctx, client, userIDHash)
 
 	subName := fmt.Sprintf("listen-%s-%016x", userIDHash, time.Now().UnixNano())
 
@@ -34,8 +38,6 @@ func createSubscription(ctx context.Context, client *pubsub.Client, userIDHash s
 			log.Println("Failed to delete subscription:", err)
 			return
 		}
-
-		log.Println("Deleted subscription")
 	}()
 
 	return

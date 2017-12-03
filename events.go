@@ -13,6 +13,7 @@ import (
 	"sync"
 
 	oldContext "golang.org/x/net/context"
+
 	"google.golang.org/api/iterator"
 
 	"cloud.google.com/go/datastore"
@@ -23,6 +24,7 @@ import (
 const eventsPath = "/events"
 
 type eventsHandler struct {
+	ctx               context.Context
 	googleLoginAppID  string
 	pubsubClient      *pubsub.Client
 	storageBucketName string
@@ -36,6 +38,14 @@ func (h *eventsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ctx, closeFunc := context.WithCancel(r.Context())
 
 		defer closeFunc()
+
+		go func() {
+			select {
+			case <-h.ctx.Done():
+				closeFunc()
+			case <-ctx.Done():
+			}
+		}()
 
 		f, ok := w.(http.Flusher)
 
@@ -70,7 +80,7 @@ func (h *eventsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		subscription, err := createSubscription(ctx, h.pubsubClient, userIDHash)
 
 		if err != nil {
-			log.Println("Failed to generate token:", err)
+			log.Println("Failed to generate subscription:", err)
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
@@ -83,12 +93,6 @@ func (h *eventsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		defer func() {
-			if err := removeToken(context.Background(), h.datastoreClient, sessionToken); err != nil {
-				log.Printf("Error removeing token %s: %s\n", sessionToken, err)
-			}
-		}()
-
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
@@ -96,7 +100,9 @@ func (h *eventsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		w.WriteHeader(http.StatusOK)
 
-		fmt.Sprintf("data: %s\n\n", sessionToken)
+		fmt.Fprintf(w, "data: %s\n\n", sessionToken)
+
+		f.Flush()
 
 		log.Println("User", userID, "logged in")
 
@@ -140,7 +146,7 @@ func (h *eventsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				log.Println("Error marshalling notification:", err)
 			}
 
-			fmt.Sprintf("data: %s\n\n", base64.StdEncoding.EncodeToString(notificationData))
+			fmt.Fprintf(w, "data: %s\n\n", base64.StdEncoding.EncodeToString(notificationData))
 
 			f.Flush()
 		}
@@ -152,7 +158,7 @@ func (h *eventsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			defer eventStreamLock.Unlock()
 			defer m.Ack()
 
-			fmt.Sprintf("data: %s\n\n", base64.StdEncoding.EncodeToString(m.Data))
+			fmt.Fprintf(w, "data: %s\n\n", base64.StdEncoding.EncodeToString(m.Data))
 			f.Flush()
 		}); err != nil {
 			log.Println("Error receiving messages:", err)
@@ -164,8 +170,9 @@ func (h *eventsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 //EventsHandler handles notifying clients of events
-func EventsHandler(googleLoginAppID string, pubsubClient *pubsub.Client, storageBucketName string, storageBucket *storage.BucketHandle, datastoreClient *datastore.Client) (string, http.Handler) {
+func EventsHandler(ctx context.Context, googleLoginAppID string, pubsubClient *pubsub.Client, storageBucketName string, storageBucket *storage.BucketHandle, datastoreClient *datastore.Client) (string, http.Handler) {
 	return eventsPath, &eventsHandler{
+		ctx:               ctx,
 		googleLoginAppID:  googleLoginAppID,
 		pubsubClient:      pubsubClient,
 		storageBucketName: storageBucketName,
