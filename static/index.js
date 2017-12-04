@@ -29,7 +29,6 @@ function uploadFile(name, type, body) {
 function onGoogleSignIn(googleUser) {
     $("body").addClass("signed-in").addClass("loading-history");
 
-
     $("#user-name").text(googleUser.getBasicProfile().getName());
 
     const token = googleUser.getAuthResponse().id_token;
@@ -55,7 +54,7 @@ function onGoogleSignIn(googleUser) {
                         "x-created": message.Created
                     }).append($("<textarea/>", {
                         "val": message.Body
-                    })).appendTo("#receiveditems");
+                    })).appendTo("#received-items");
                     break;
                 default:
                     $("<div/>", {
@@ -64,7 +63,7 @@ function onGoogleSignIn(googleUser) {
                         "text": message.Name,
                         "href": message.URL,
                         "target": "blank"
-                    })).appendTo("#receiveditems");
+                    })).appendTo("#received-items");
                     break;
             }
         }
@@ -121,6 +120,8 @@ $.when($.ready).then(function () {
                 eventSource = undefined;
             }
             sessionToken = undefined;
+
+            $("#user-name").text("");
 
             $("#paste-form textarea").val("");
 

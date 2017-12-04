@@ -18,6 +18,7 @@ import (
 const uploadPath = "/upload"
 
 type uploadHandler struct {
+	projectID         string
 	googleLoginAppID  string
 	pubsubClient      *pubsub.Client
 	storageBucketName string
@@ -80,6 +81,10 @@ func (h *uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					Entity: storage.ACLEntity(fmt.Sprint("user-", email)),
 					Role:   storage.RoleReader,
 				},
+				{
+					Entity: storage.ACLEntity(fmt.Sprint("user-", h.projectID, "@appspot.gserviceaccount.com")),
+					Role:   storage.RoleReader,
+				},
 			},
 			Metadata: map[string]string{
 				metaDataName: uploadName,
@@ -122,8 +127,9 @@ func (h *uploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 //UploadHandler handles the uploading of new files
-func UploadHandler(googleLoginAppID string, pubsubClient *pubsub.Client, storageBucketName string, storageBucket *storage.BucketHandle, datastoreClient *datastore.Client) (string, http.Handler) {
+func UploadHandler(projectID string, googleLoginAppID string, pubsubClient *pubsub.Client, storageBucketName string, storageBucket *storage.BucketHandle, datastoreClient *datastore.Client) (string, http.Handler) {
 	return uploadPath, &uploadHandler{
+		projectID:         projectID,
 		googleLoginAppID:  googleLoginAppID,
 		pubsubClient:      pubsubClient,
 		storageBucketName: storageBucketName,

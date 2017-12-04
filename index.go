@@ -75,7 +75,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.Handle(EventsHandler(ctx, googleLoginAppID, pubsubClient, storageBucketName, storageBucket, datastoreClient))
-	mux.Handle(UploadHandler(googleLoginAppID, pubsubClient, storageBucketName, storageBucket, datastoreClient))
+	mux.Handle(UploadHandler(projectID, googleLoginAppID, pubsubClient, storageBucketName, storageBucket, datastoreClient))
 	mux.Handle(HealthHandler())
 	mux.Handle("/", http.FileServer(http.Dir("static")))
 
