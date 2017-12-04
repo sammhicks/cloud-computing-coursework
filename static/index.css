@@ -1,0 +1,147 @@
+body {
+    margin: 0;
+    
+    position: absolute;
+
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 100%;
+
+    font-size: 100%;
+    font-family: sans-serif;
+}
+
+body:not(.signed-in) #signed-in {
+    display: none;
+}
+
+body.signed-in #sign-in {
+    display: none;
+}
+
+#disconnected-error {
+    background: red;
+    color: white;
+
+    padding: 0.5em;
+}
+
+body:not(.disconnected) #disconnected-error {
+    display: none
+}
+
+.flex-row, .flex-col {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    justify-content: space-around;
+}
+
+.flex-row {
+    flex-direction: row;
+}
+
+.flex-col {
+    flex-direction: column;
+}
+
+.flex-row > *, .flex-col > * {
+    flex: 1 0;
+}
+
+.flex-end {
+    justify-content: flex-end;
+}
+
+.half-size {
+    flex-grow: 0.5;
+}
+
+.min-size {
+    flex: 0 1;
+}
+
+.no-resize {
+    flex: 0 0 auto;
+}
+
+.centered {
+    align-self: center;
+}
+
+.center-text {
+    text-align: center;
+}
+
+.side-padding {
+    padding-left: 1em;
+    padding-right: 1em;
+}
+
+aside {
+    float: right;    
+}
+
+#paste-form {
+    padding: 1em;
+}
+
+#paste-form textarea {
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    resize: none;
+}
+
+#file-drop-area {
+    margin: 1em;
+    border: 2px dashed black;
+
+    display: flex;
+    flex-flow: column nowrap;
+    align-items: center;
+    justify-content: center;
+}
+
+#file-drop-area.valid-dragging {
+    border-color: limegreen;
+}
+
+#file-drop-area.invalid-dragging {
+    border-color: red;
+}
+
+#file-drop-area * {
+    font-size: 200%;
+}
+
+#received-items {
+    display: flex;
+    flex-flow: column nowrap;
+}
+
+#received-items > div {
+    display: flex;
+    flex-flow: column nowrap;
+
+    margin: 0 0.5em 0.5em;
+}
+
+#received-items textarea {
+    width: 100%;
+    height: 8em;
+    box-sizing: border-box;
+    resize: none;
+}
+
+#received-items a {
+    align-self: center;
+}
+
+body:not(.loading-history) .show-while-loading-history {
+    display: none;
+}
+
+body.loading-history .hide-while-loading-history {
+    display: none;
+}

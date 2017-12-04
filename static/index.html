@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="initial-scale=1, width=device-width">
+
+    <link rel="stylesheet" type="text/css" href="index.css">
+
+    <meta name="google-signin-scope" content="profile">
+    <meta name="google-signin-client_id" content="812818444262-dihtcq1cl07rrc4d3gs86obfs95dhe4i.apps.googleusercontent.com">
+
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js" crossorigin="anonymous" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
+        defer></script>
+    <script src="index.js" defer></script>
+    <script src="https://apis.google.com/js/platform.js" defer></script>
+
+    <title>Web Clipboard</title>
+</head>
+
+<body class="flex-col">
+    <div id="sign-in" class="flex-col">
+        <header class="centered min-size">
+            <h1>Web Clipboard</h1>
+        </header>
+        <main class="flex-col">
+            <div class="centered min-size">
+                <div class="g-signin2" data-onsuccess="onGoogleSignIn"></div>
+            </div>
+        </main>
+    </div>
+    <div id="signed-in" class="flex-col">
+        <div id="disconnected-error" class="flex-col min-size">
+            <span class="center-text centered">
+                Error. Lost connection to Server. Please refresh the browser
+            </span>
+        </div>
+        <header class="flex-col min-size">
+            <h1 class="center-text centered">Web Clipboard</h1>
+        </header>
+        <div class="flex-row flex-end min-size">
+            <aside class="no-resize side-padding">
+                Signed in as
+                <span id="user-name"></span>
+                <a id="sign-out" href="#">Sign out</a>
+            </aside>
+        </div>
+        <div class="show-while-loading-history min-size center-text">
+            Loading history...
+        </div>
+        <div class="flex-row half-size hide-while-loading-history">
+            <form id="paste-form" class="flex-col">
+                <div>
+                    <textarea placeholder="Paste Text Here!"></textarea>
+                </div>
+                <input type="submit" class="no-resize" value="Send Text">
+            </form>
+            <div id="file-drop-area">
+                <span>
+                    Drop Files Here!
+                </span>
+            </div>
+        </div>
+        <h2 class="min-size center-text hide-while-loading-history">Clipboard items</h2>
+        <div id="received-items"></div>
+    </div>
+</body>
+
+</html>
