@@ -155,7 +155,7 @@ $.when($.ready).then(function () {
     }).on("drop", async function (ev) {
         const types = ev.originalEvent.dataTransfer.types;
 
-        if ($.inArray("Files", types)) {
+        if ($.inArray("Files", types) > -1) {
             const files = ev.originalEvent.dataTransfer.files;
 
             await uploadFiles(files);
