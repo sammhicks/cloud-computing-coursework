@@ -27,7 +27,8 @@ function uploadFile(name, type, body) {
 }
 
 function onGoogleSignIn(googleUser) {
-    $("body").addClass("signedin");
+    $("body").addClass("signedin").addClass("loadinghistory");
+
 
     $("#username").text(googleUser.getBasicProfile().getName());
 
@@ -43,6 +44,7 @@ function onGoogleSignIn(googleUser) {
 
     eventSource.onmessage = function (ev) {
         if (sessionToken == undefined) {
+            $("body").removeClass("loadinghistory");
             sessionToken = ev.data.trim();
         } else {
             const message = JSON.parse(atob(ev.data.trim()));

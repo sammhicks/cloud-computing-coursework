@@ -137,3 +137,11 @@ aside {
 #receiveditems a {
     align-self: center;
 }
+
+body:not(.loadinghistory) .showwhileloadinghistory {
+    display: none;
+}
+
+body.loadinghistory .hidewhileloadinghistory {
+    display: none;
+}

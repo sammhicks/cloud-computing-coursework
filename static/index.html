@@ -35,7 +35,7 @@
                 Error. Lost connection to Server. Please refresh the browser
             </span>
         </div>
-        <header class="flexrow minsize">
+        <header class="flexcol minsize">
             <h1 class="centertext centered">Web Clipboard</h1>
         </header>
         <div class="flexrow flexend minsize">
@@ -45,7 +45,10 @@
                 <a id="signout" href="#">Sign out</a>
             </aside>
         </div>
-        <div class="flexrow halfsize">
+        <div class="showwhileloadinghistory minsize centertext">
+            Loading history...
+        </div>
+        <div class="flexrow halfsize hidewhileloadinghistory">
             <form id="pasteform" class="flexcol">
                 <div>
                     <textarea placeholder="Paste Text Here!"></textarea>
@@ -58,7 +61,7 @@
                 </span>
             </div>
         </div>
-        <h2 class="minsize centertext">Clipboard items</h2>
+        <h2 class="minsize centertext hidewhileloadinghistory">Clipboard items</h2>
         <div id="receiveditems"></div>
     </div>
 </body>
