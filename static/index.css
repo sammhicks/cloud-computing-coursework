@@ -11,57 +11,57 @@ body {
     font-family: sans-serif;
 }
 
-body:not(.signedin) #signedin {
+body:not(.signed-in) #signed-in {
     display: none;
 }
 
-body.signedin #signin {
+body.signed-in #sign-in {
     display: none;
 }
 
-#disconnectederror {
+#disconnected-error {
     background: red;
     color: white;
 
     padding: 0.5em;
 }
 
-body:not(.disconnected) #disconnectederror {
+body:not(.disconnected) #disconnected-error {
     display: none
 }
 
-.flexrow, .flexcol {
+.flex-row, .flex-col {
     display: flex;
     flex-wrap: nowrap;
     align-items: stretch;
     justify-content: space-around;
 }
 
-.flexrow {
+.flex-row {
     flex-direction: row;
 }
 
-.flexcol {
+.flex-col {
     flex-direction: column;
 }
 
-.flexrow > *, .flexcol > * {
+.flex-row > *, .flex-col > * {
     flex: 1 0;
 }
 
-.flexend {
+.flex-end {
     justify-content: flex-end;
 }
 
-.halfsize {
+.half-size {
     flex-grow: 0.5;
 }
 
-.minsize {
+.min-size {
     flex: 0 1;
 }
 
-.noresize {
+.no-resize {
     flex: 0 0 auto;
 }
 
@@ -69,11 +69,11 @@ body:not(.disconnected) #disconnectederror {
     align-self: center;
 }
 
-.centertext {
+.center-text {
     text-align: center;
 }
 
-.sidepadding {
+.side-padding {
     padding-left: 1em;
     padding-right: 1em;
 }
@@ -82,18 +82,18 @@ aside {
     float: right;    
 }
 
-#pasteform {
+#paste-form {
     padding: 1em;
 }
 
-#pasteform textarea {
+#paste-form textarea {
     width: 100%;
     height: 100%;
     box-sizing: border-box;
     resize: none;
 }
 
-#filedroparea {
+#file-drop-area {
     margin: 1em;
     border: 2px dashed black;
 
@@ -103,45 +103,45 @@ aside {
     justify-content: center;
 }
 
-#filedroparea.validDragging {
+#file-drop-area.valid-dragging {
     border-color: limegreen;
 }
 
-#filedroparea.invalidDragging {
+#file-drop-area.invalid-dragging {
     border-color: red;
 }
 
-#filedroparea * {
+#file-drop-area * {
     font-size: 200%;
 }
 
-#receiveditems {
+#received-items {
     display: flex;
     flex-flow: column nowrap;
 }
 
-#receiveditems > div {
+#received-items > div {
     display: flex;
     flex-flow: column nowrap;
 
     margin: 0 0.5em 0.5em;
 }
 
-#receiveditems textarea {
+#received-items textarea {
     width: 100%;
     height: 8em;
     box-sizing: border-box;
     resize: none;
 }
 
-#receiveditems a {
+#received-items a {
     align-self: center;
 }
 
-body:not(.loadinghistory) .showwhileloadinghistory {
+body:not(.loading-history) .show-while-loading-history {
     display: none;
 }
 
-body.loadinghistory .hidewhileloadinghistory {
+body.loading-history .hide-while-loading-history {
     display: none;
 }

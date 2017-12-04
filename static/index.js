@@ -27,10 +27,10 @@ function uploadFile(name, type, body) {
 }
 
 function onGoogleSignIn(googleUser) {
-    $("body").addClass("signedin").addClass("loadinghistory");
+    $("body").addClass("signed-in").addClass("loading-history");
 
 
-    $("#username").text(googleUser.getBasicProfile().getName());
+    $("#user-name").text(googleUser.getBasicProfile().getName());
 
     const token = googleUser.getAuthResponse().id_token;
 
@@ -44,7 +44,7 @@ function onGoogleSignIn(googleUser) {
 
     eventSource.onmessage = function (ev) {
         if (sessionToken == undefined) {
-            $("body").removeClass("loadinghistory");
+            $("body").removeClass("loading-history");
             sessionToken = ev.data.trim();
         } else {
             const message = JSON.parse(atob(ev.data.trim()));
@@ -107,7 +107,7 @@ async function uploadFiles(files) {
 }
 
 $.when($.ready).then(function () {
-    $("#signout").click(function () {
+    $("#sign-out").click(function () {
         var auth2 = gapi.auth2.getAuthInstance();
 
         auth2.disconnect();
@@ -115,40 +115,40 @@ $.when($.ready).then(function () {
         auth2.signOut().then(function () {
             console.log('User signed out.');
 
-            $("body").removeClass("signedin");
+            $("body").removeClass("signed-in");
             if (eventSource) {
                 eventSource.close();
                 eventSource = undefined;
             }
             sessionToken = undefined;
 
-            $("#pasteform textarea").val("");
+            $("#paste-form textarea").val("");
 
-            $("#receiveditems").empty();
+            $("#received-items").empty();
         });
 
     })
 
-    $("#pasteform").submit(async function (transmitEvent) {
+    $("#paste-form").submit(async function (transmitEvent) {
         transmitEvent.preventDefault();
 
         await uploadFile("Clipboard", "text/x-clipboard", $(transmitEvent.target).find("textarea").val());
     });
 
-    $("#filedroparea").on("dragstart drag", function (ev) {
+    $("#file-drop-area").on("dragstart drag", function (ev) {
         ev.preventDefault();
     }).on("dragenter dragover", function (ev) {
         const types = ev.originalEvent.dataTransfer.types;
 
         if ($.inArray("Files", types) > -1) {
-            $(this).addClass("validDragging").removeClass("invalidDragging");
+            $(this).addClass("valid-dragging").removeClass("invalid-dragging");
 
             ev.preventDefault();
         } else {
-            $(this).addClass("invalidDragging").removeClass("validDragging");
+            $(this).addClass("invalid-dragging").removeClass("valid-dragging");
         }
     }).on("dragleave dragend drop", function (ev) {
-        $(this).removeClass("validDragging").removeClass("invalidDragging");
+        $(this).removeClass("valid-dragging").removeClass("invalid-dragging");
 
         ev.preventDefault();
     }).on("drop", async function (ev) {

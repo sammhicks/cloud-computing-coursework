@@ -18,51 +18,51 @@
     <title>Web Clipboard</title>
 </head>
 
-<body class="flexcol">
-    <div id="signin" class="flexcol">
-        <header class="centered minsize">
+<body class="flex-col">
+    <div id="sign-in" class="flex-col">
+        <header class="centered min-size">
             <h1>Web Clipboard</h1>
         </header>
-        <main class="flexcol">
-            <div class="centered minsize">
+        <main class="flex-col">
+            <div class="centered min-size">
                 <div class="g-signin2" data-onsuccess="onGoogleSignIn"></div>
             </div>
         </main>
     </div>
-    <div id="signedin" class="flexcol">
-        <div id="disconnectederror" class="flexcol minsize">
-            <span class="centertext centered">
+    <div id="signed-in" class="flex-col">
+        <div id="disconnected-error" class="flex-col min-size">
+            <span class="center-text centered">
                 Error. Lost connection to Server. Please refresh the browser
             </span>
         </div>
-        <header class="flexcol minsize">
-            <h1 class="centertext centered">Web Clipboard</h1>
+        <header class="flex-col min-size">
+            <h1 class="center-text centered">Web Clipboard</h1>
         </header>
-        <div class="flexrow flexend minsize">
-            <aside class="noresize sidepadding">
+        <div class="flex-row flex-end min-size">
+            <aside class="no-resize side-padding">
                 Signed in as
-                <span id="username"></span>
-                <a id="signout" href="#">Sign out</a>
+                <span id="user-name"></span>
+                <a id="sign-out" href="#">Sign out</a>
             </aside>
         </div>
-        <div class="showwhileloadinghistory minsize centertext">
+        <div class="show-while-loading-history min-size center-text">
             Loading history...
         </div>
-        <div class="flexrow halfsize hidewhileloadinghistory">
-            <form id="pasteform" class="flexcol">
+        <div class="flex-row half-size hide-while-loading-history">
+            <form id="paste-form" class="flex-col">
                 <div>
                     <textarea placeholder="Paste Text Here!"></textarea>
                 </div>
-                <input type="submit" class="noresize" value="Send Text">
+                <input type="submit" class="no-resize" value="Send Text">
             </form>
-            <div id="filedroparea">
+            <div id="file-drop-area">
                 <span>
                     Drop Files Here!
                 </span>
             </div>
         </div>
-        <h2 class="minsize centertext hidewhileloadinghistory">Clipboard items</h2>
-        <div id="receiveditems"></div>
+        <h2 class="min-size center-text hide-while-loading-history">Clipboard items</h2>
+        <div id="received-items"></div>
     </div>
 </body>
 

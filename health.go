@@ -16,5 +16,5 @@ func (h *healthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 //HealthHandler handles health checks
 func HealthHandler() (string, http.Handler) {
-	return healthHandler, &healthHandler{}
+	return healthPath, &healthHandler{}
 }
