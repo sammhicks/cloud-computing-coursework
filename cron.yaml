@@ -1,0 +1,4 @@
+cron:
+- description: "cleanup expired cookies"
+  url: /cleanup
+  schedule: every monday 03:00
